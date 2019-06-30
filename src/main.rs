@@ -1,19 +1,24 @@
-use std::fs::{File, copy, read, create_dir_all};
+// Disable console on windows (https://github.com/rust-lang/rust/pull/37501)
+#![windows_subsystem = "windows"]
+
+use std::fs::{File, copy, read, create_dir_all, OpenOptions};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::Duration;
 
+use atty::Stream;
 use chrono::Local;
 use clap::{Arg, App};
 use dirs::home_dir;
 use log::{info, debug, error, trace};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use simplelog::{CombinedLogger, TermLogger, TerminalMode, WriteLogger, LevelFilter, Config};
+use simplelog::{CombinedLogger, TermLogger, TerminalMode, WriteLogger, LevelFilter, Config, SharedLogger};
 
 extern crate exitcode;
 
 fn main() {
+	// Setup CLI arguments
 	let matches = App::new("file-watcher-backup")
 		.about("Whenever a file changes, copy it's content to a backup file.")
 		.version("0.1.0")
@@ -36,28 +41,20 @@ fn main() {
 			.takes_value(true))
 		.get_matches();
 
-	// The default log directory for the moment is the home directory of the user
-	let mut _log_path = home_dir().unwrap();
+	let mut loggers: Vec<Box<SharedLogger>> = Vec::new();
 
-	let log_file_name = format!("file-backup-{}.log", Local::now().format("%Y-%m-%d_%H-%M-%S"));
-	_log_path.push(log_file_name);
+	// First: configure the console logger if we have an attached terminal
+	if atty::is(Stream::Stdout) {
+		// Terminal
+		loggers.push(TermLogger::new(LevelFilter::Debug, Config::default(), TerminalMode::Mixed).unwrap());
+	}
 
-	let log_file_path = _log_path.as_path();
+	let file_logger = create_file_logger();
+	if file_logger.is_some() {
+		loggers.push(file_logger.unwrap());
+	}
 
-	let log_file = match File::create(log_file_path) {
-		Ok(file) => file,
-		Err(error) => {
-			println!("Could not create the log file in `{:?}`. {}", log_file_path, error);
-			std::process::exit(exitcode::IOERR)
-		}
-	};
-
-	CombinedLogger::init(
-		vec![
-			TermLogger::new(LevelFilter::Debug, Config::default(), TerminalMode::Mixed).unwrap(),
-			WriteLogger::new(LevelFilter::Trace, Config::default(), log_file)
-		]
-	).unwrap();
+	CombinedLogger::init(loggers).unwrap();
 
 	// Since "source" argument is required, unwrap() here is safe
 	let src_path = matches.value_of("source").unwrap();
@@ -136,5 +133,29 @@ fn main() {
 			},
 			Err(e) => error!("Watch error. {:?}", e)
 		}
+	}
+}
+
+fn create_file_logger() -> Option<Box<WriteLogger<File>>> {
+	// The default log directory for the moment is the $HOME/file-watcher-backup directory of the user
+	let mut _log_path = match home_dir() {
+		Some(path) => path,
+		None => return None
+	};
+
+	_log_path.push("file-watcher-backup");
+	match create_dir_all(&_log_path) {
+		Ok(()) => (),
+		Err(_) => return None
+	};
+
+	let log_file_name = format!("{}.log", Local::now().format("%Y-%m-%d"));
+	_log_path.push(log_file_name);
+
+	let log_file_path = _log_path.as_path();
+
+	match OpenOptions::new().create(true).append(true).open(log_file_path) {
+			Ok(file) => Some(WriteLogger::new(LevelFilter::Trace, Config::default(), file)),
+			Err(_) => return None
 	}
 }
