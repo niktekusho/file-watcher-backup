@@ -1,14 +1,15 @@
 use std::fs::{File, copy, read, create_dir_all};
-use std::io::{ErrorKind};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
-use std::time::{Duration};
+use std::time::Duration;
 
-use log::{info, debug, error, trace};
-use simplelog::{CombinedLogger, TermLogger, TerminalMode, WriteLogger, LevelFilter, Config};
+use chrono::Local;
 use clap::{Arg, App};
-// use dirs::{home_dir};
+use dirs::home_dir;
+use log::{info, debug, error, trace};
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use simplelog::{CombinedLogger, TermLogger, TerminalMode, WriteLogger, LevelFilter, Config};
 
 extern crate exitcode;
 
@@ -36,23 +37,25 @@ fn main() {
 		.get_matches();
 
 	// The default log directory for the moment is the home directory of the user
-	// let mut log_path = home_dir().unwrap();
+	let mut _log_path = home_dir().unwrap();
 
-	// let log_file_name = format!("file-backup-{:#?}.log", SystemTime::now());
-	// log_path.push(log_file_name);
+	let log_file_name = format!("file-backup-{}.log", Local::now().format("%Y-%m-%d_%H-%M-%S"));
+	_log_path.push(log_file_name);
 
-	// let mut log_file = match File::create(log_path.as_path()) {
-	// 	Ok(file) => file,
-	// 	Err(error) => {
-	// 		error!("Could not create the log file in `{}`. {}", log_path, error);
-	// 		None
-	// 	}
-	// };
+	let log_file_path = _log_path.as_path();
+
+	let log_file = match File::create(log_file_path) {
+		Ok(file) => file,
+		Err(error) => {
+			println!("Could not create the log file in `{:?}`. {}", log_file_path, error);
+			std::process::exit(exitcode::IOERR)
+		}
+	};
 
 	CombinedLogger::init(
 		vec![
-			TermLogger::new(LevelFilter::Debug, Config::default(), TerminalMode::Mixed).unwrap()
-			// WriteLogger::new(LevelFilter::Trace, Config::default(), log_file)
+			TermLogger::new(LevelFilter::Debug, Config::default(), TerminalMode::Mixed).unwrap(),
+			WriteLogger::new(LevelFilter::Trace, Config::default(), log_file)
 		]
 	).unwrap();
 
