@@ -1,7 +1,7 @@
 # file-watcher-backup
 
 [![License](https://img.shields.io/github/license/niktekusho/file-watcher-backup.svg?style=flat)](./LICENSE)
-[![Build Status](https://travis-ci.org/niktekusho/file-watcher-backup.svg?branch=master)](https://travis-ci.org/niktekusho/file-watcher-backup)
+[![Build Status](https://travis-ci.com/niktekusho/file-watcher-backup.svg?branch=master)](https://travis-ci.com/niktekusho/file-watcher-backup)
 
 
 **DISCLAIMER**: *🎉 This is my first attempt at building something in Rust so I am sure the code could be better. 🎉*
