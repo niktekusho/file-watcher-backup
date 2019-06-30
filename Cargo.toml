@@ -1,0 +1,13 @@
+[package]
+name = "file-watcher-backup"
+version = "0.1.0"
+authors = ["Nicola <nicola.dalmaso@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+clap="2.33.0"
+dirs = "2.0.1"
+exitcode="1.1.2"
+notify="4.0.12"
+log="0.4.6"
+simplelog="0.6.0"
